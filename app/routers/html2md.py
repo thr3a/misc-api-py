@@ -43,7 +43,7 @@ async def _convert_html_to_markdown(url: str) -> str:
         raise HTTPException(status_code=400, detail=msg)
 
     def _extract() -> str:
-        result = extract(html, url=url, output_format="markdown", with_metadata=True)
+        result = extract(html, url=url, output_format="markdown", with_metadata=False)
         if result is None:
             msg = "コンテンツの抽出に失敗しました。"
             raise HTTPException(status_code=400, detail=msg)
