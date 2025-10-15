@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 
-from .routers import items
+from .routers import html2md, items
 
 app = FastAPI()
 
 app.include_router(items.router)
+app.include_router(html2md.router)
 
 
 @app.get("/")
