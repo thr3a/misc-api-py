@@ -1,0 +1,61 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // VS Codeからuvicornを直起動（リロード付き）。
+      // リロードは子プロセスになるため、subProcessで子にもアタッチします。
+      "name": "FastAPI (uvicorn --reload)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--reload",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "3000"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "subProcess": true,
+      "env": {
+        // ワークスペース直下をimport解決に含める
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    },
+    {
+      // 普段の `uv run fastapi run app/main.py --port 3000 --reload` 相当
+      // venv(.venv)のPythonを選択していればuvは不要なので、fastapiモジュールを直接実行します。
+      "name": "FastAPI (fastapi run --reload)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "fastapi",
+      "args": [
+        "run",
+        "app/main.py",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "3000",
+        "--reload"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "subProcess": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    },
+    {
+      // 既にターミナルで `uv run fastapi run ...` を起動済みのときにプロセスへアタッチ
+      "name": "Attach: 選択したPythonプロセスに接続",
+      "type": "debugpy",
+      "request": "attach",
+      "processId": "${command:pickProcess}",
+      "justMyCode": false
+    }
+  ]
+}
