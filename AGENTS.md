@@ -4,3 +4,4 @@
 - サーバーはuv run uvicorn app.main:app --reload --host 0.0.0.0 --port 3000で起動中
 - 本番環境ではDockerfileのイメージで起動する
 - パッケージはuvで管理している。インストールされたパッケージは.venv/lib/python3.13/site-packages/以下に入っている
+- リクエスト/レスポンスのバリデーションにはPydanticを使用すること Pydanticモデルで型安全性とデータ検証を実現すること

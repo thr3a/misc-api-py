@@ -1,8 +1,9 @@
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field, HttpUrl
-from trafilatura import extract, fetch_url
+from trafilatura import extract
 
 
 class Html2MarkdownQuery(BaseModel):
@@ -20,17 +21,29 @@ router = APIRouter(
     },
 )
 
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
+
 
 async def _convert_html_to_markdown(url: str) -> str:
     """HTML を取得し、Markdown に変換する内部処理"""
+    headers = {"User-Agent": USER_AGENT, "Accept-Language": "ja-JP"}
+    async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
+        try:
+            response = await client.get(url, timeout=10)
+        except httpx.HTTPError as exc:
+            msg = "指定した URL からコンテンツを取得できませんでした。"
+            raise HTTPException(status_code=400, detail=msg) from exc
+    if response.status_code >= 400:
+        msg = f"指定した URL の取得に失敗しました（HTTP {response.status_code}）。"
+        raise HTTPException(status_code=400, detail=msg)
+
+    html = response.text
+    if not html.strip():
+        msg = "取得したコンテンツが空でした。"
+        raise HTTPException(status_code=400, detail=msg)
 
     def _extract() -> str:
-        downloaded = fetch_url(url)
-        if downloaded is None:
-            msg = "指定した URL からコンテンツを取得できませんでした。"
-            raise HTTPException(status_code=400, detail=msg)
-
-        result = extract(downloaded, output_format="markdown", with_metadata=True)
+        result = extract(html, url=url, output_format="markdown", with_metadata=True)
         if result is None:
             msg = "コンテンツの抽出に失敗しました。"
             raise HTTPException(status_code=400, detail=msg)
