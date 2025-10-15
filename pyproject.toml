@@ -18,19 +18,18 @@ target-version = "py313"
 exclude = [".git", ".ruff_cache", ".venv", ".vscode"]
 
 [tool.ruff.lint]
-preview = true
 select = [
-    "ANN", # type annotation
-    "B",   # flake8-bugbear
-    "D",   # pydocstyle
-    "E",   # pycodestyle errors
-    "F",   # pyflakes
-    "I",   # isort
-    "PTH", # use `pathlib.Path` instead of `os.path`
-    "RUF", # ruff specific rules
-    "SIM", # flake8-simplify
+    "ANN", # 型アノテーション関連
+    "B",   # flake8-bugbearルール
+    "D",   # pydocstyleルール
+    "E",   # pycodestyleエラー
+    "F",   # pyflakesルール
+    "I",   # isort互換ルール
+    "PTH", # os.pathではなくpathlib.Pathの利用を促す
+    "RUF", # Ruff固有ルール
+    "SIM", # flake8-simplifyルール
     "UP",  # pyupgrade
-    "W",   # pycodestyle warnings
+    "W",   # pycodestyle警告
 ]
 ignore = [
     "RUF001", # 文字列内の曖昧なUnicode文字を許容
@@ -60,11 +59,10 @@ ignore = [
     "SIM105", # try-except-passをcontextlib.suppressで置き換えなくても許容
     "SIM108", # if-elseブロックを三項演算子にしなくても許容
     "SIM116", # 連続したif文を辞書にしなくても許容
-    "UP038",  # isinstanceの(X, Y)をX | Yにしなくても許容（非推奨）
 ]
 unfixable = [
-    "F401", # unused import
-    "F841", # unused variable
+    "F401", # 未使用インポート
+    "F841", # 未使用変数
 ]
 
 [tool.ruff.lint.per-file-ignores]
