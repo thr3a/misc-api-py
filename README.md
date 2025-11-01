@@ -12,3 +12,11 @@ OpenAPI (Swagger UI) で表示されるための詳細な日本語のドキュ�
 サンプルコード
 @/memo.md
 ```
+
+```
+import httpx, autopager; html=httpx.get('https://gendai.media/articles/-/159330?imp=0').text;
+print(autopager.urls(html, baseurl='https://gendai.media/articles/-/159330?imp=0'))
+
+['https://gendai.media/articles/-/159330?page=2', 'https://gendai.media/articles/-/159330?imp=0', 'https://gendai.media/articles/-/159330?page=2', 'https://gendai.media/articles/-/159330?page=3', 'https://gendai.media/articles/-/159330?page=4', 'https://gendai.media/articles/-/159330?page=5']
+```
+

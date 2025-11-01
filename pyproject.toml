@@ -10,6 +10,8 @@ dependencies = [
     "pytest",
     "trafilatura[all]>=2.0.0",
     "httpx>=0.28.1",
+    "autopager>=0.3.1",
+    "ipython>=9.6.0",
 ]
 
 [tool.ruff]
