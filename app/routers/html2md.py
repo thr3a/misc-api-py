@@ -1,6 +1,7 @@
 import re
 
 import autopager
+import chardet
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
@@ -45,6 +46,43 @@ async def _fetch(client: httpx.AsyncClient, url: str) -> httpx.Response | None:
     return resp
 
 
+def _decode_response(resp: httpx.Response) -> str:
+    """レスポンスのコンテンツを適切な文字コードでデコードする。
+
+    chardet を使用して文字コードを検出し、Shift-JIS などの非 UTF-8
+    エンコーディングにも対応する。
+
+    Args:
+        resp: HTTPX レスポンスオブジェクト。
+
+    Returns:
+        デコードされた HTML 文字列。
+    """
+    # まず httpx の自動デコードを試す
+    try:
+        text = resp.text
+        # デコード結果に文字化け（置換文字）が含まれている場合は chardet を使用
+        if "" not in text:
+            return text
+    except Exception:
+        pass
+
+    # chardet で文字コードを検出
+    detected = chardet.detect(resp.content)
+    encoding = detected.get("encoding", "utf-8")
+    confidence = detected.get("confidence", 0)
+
+    # 信頼度が低い場合は UTF-8 を優先
+    if confidence < 0.7:
+        encoding = "utf-8"
+
+    try:
+        return resp.content.decode(encoding, errors="replace")
+    except (UnicodeDecodeError, LookupError):
+        # デコード失敗時は UTF-8 で再試行
+        return resp.content.decode("utf-8", errors="replace")
+
+
 def _extract_markdown(html: str, url: str) -> str | None:
     """HTML 文字列から trafilatura で Markdown を抽出する。
 
@@ -61,6 +99,7 @@ def _extract_markdown(html: str, url: str) -> str | None:
 
 _PAGE_IN_PATH_RE: re.Pattern[str] = re.compile(r"/(?:p|page)/(?P<num>\d+)(?:/|$)", re.IGNORECASE)
 _PAGE_SUFFIX_RE: re.Pattern[str] = re.compile(r"(?:^|[^a-z])(?:p|page)[-]?(?P<num>\d+)(?:/|$)", re.IGNORECASE)
+_PAGE_UNDERSCORE_RE: re.Pattern[str] = re.compile(r"_(?P<num>\d+)(?:\.html?|/|$)", re.IGNORECASE)
 
 
 def _detect_page_number(url: str) -> int | None:
@@ -68,6 +107,7 @@ def _detect_page_number(url: str) -> int | None:
 
     - クエリ文字列の `page` または `p` を優先
     - パスに含まれる `/page/2`, `/p/2`, `page-2`, `page2` などのパターンも対応
+    - アンダースコアの後に数字が続くパターン（例: news051_2.html）も対応
     - 該当しない場合は None（呼び出し側で 1 とみなす）
     """
     from urllib.parse import parse_qs, urlsplit
@@ -84,6 +124,9 @@ def _detect_page_number(url: str) -> int | None:
     if m:
         return int(m.group("num"))
     m = _PAGE_SUFFIX_RE.search(parts.path)
+    if m:
+        return int(m.group("num"))
+    m = _PAGE_UNDERSCORE_RE.search(parts.path)
     if m:
         return int(m.group("num"))
     return None
@@ -104,7 +147,8 @@ def _build_pagination_urls(base_url: str, first_response: httpx.Response) -> lis
         # httpx.Response をそのまま渡すと base URL 解決時に型不一致となる
         # ため、HTML 文字列と明示的な base_url を与える。
         # （requests.Response の .url は str だが httpx は httpx.URL 型）
-        urls = autopager.urls(first_response.text, baseurl=base_url)
+        html_text = _decode_response(first_response)
+        urls = autopager.urls(html_text, baseurl=base_url)
     except Exception:
         # autopager の解析に失敗した場合は後続で base_url のみ処理
         urls = []
@@ -163,7 +207,8 @@ async def convert_html2md(query: Html2MarkdownQuery = Depends()) -> PlainTextRes
         markdown_parts: list[str] = []
 
         # 1ページ目は既にレスポンスがあるので先に処理
-        first_md = await run_in_threadpool(_extract_markdown, first.text, base_url)
+        first_html = _decode_response(first)
+        first_md = await run_in_threadpool(_extract_markdown, first_html, base_url)
         if isinstance(first_md, str):
             markdown_parts.append(first_md)
 
@@ -174,7 +219,8 @@ async def convert_html2md(query: Html2MarkdownQuery = Depends()) -> PlainTextRes
             resp = await _fetch(client, page_url)
             if resp is None:
                 continue  # 取得失敗はスキップ
-            md = await run_in_threadpool(_extract_markdown, resp.text, page_url)
+            html = _decode_response(resp)
+            md = await run_in_threadpool(_extract_markdown, html, page_url)
             if isinstance(md, str) and md:
                 markdown_parts.append(md)
 
