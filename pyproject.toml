@@ -17,6 +17,7 @@ dependencies = [
     "newspaper4k>=0.9.4.1",
     "tinysegmenter>=0.4",
     "chardet>=5.2.0",
+    "pygithub>=2.8.1",
 ]
 
 [tool.ruff]

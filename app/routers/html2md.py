@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urlsplit
 
 import autopager
 import chardet
@@ -9,6 +10,8 @@ from fastapi.responses import PlainTextResponse
 from httpx_curl_cffi import AsyncCurlTransport
 from pydantic import BaseModel, Field, HttpUrl
 from trafilatura import extract
+
+from app.services.github_html2md import GithubMarkdownError, convert_github_url_to_markdown
 
 
 class Html2MarkdownQuery(BaseModel):
@@ -187,6 +190,20 @@ async def convert_html2md(query: Html2MarkdownQuery = Depends()) -> PlainTextRes
     1 ページ目として扱います。
     """
     base_url = str(query.url)
+
+    # GitHub の issue / discussion は専用ロジックで処理する
+    parsed = urlsplit(base_url)
+    host = parsed.netloc.lower()
+    if host == "github.com" or host.endswith(".github.com"):
+        try:
+            markdown = await run_in_threadpool(convert_github_url_to_markdown, base_url)
+        except GithubMarkdownError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:  # pragma: no cover - 想定外の例外
+            msg = "GitHub からコンテンツを取得中にエラーが発生しました。"
+            raise HTTPException(status_code=500, detail=msg) from exc
+
+        return PlainTextResponse(content=markdown, media_type="text/markdown; charset=utf-8")
 
     headers = {"Accept-Language": "ja-JP"}
     transport = AsyncCurlTransport(
