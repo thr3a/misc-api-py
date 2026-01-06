@@ -4,9 +4,10 @@ import os
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Final
+from typing import Any, Final
 from urllib.parse import urlsplit
 
+import github
 from github import Auth, Github, GithubException
 
 EM_SPACE: Final[str] = "\u2003"
@@ -25,8 +26,9 @@ class GithubResource:
     """GitHub 上の issue / discussion を表す情報。"""
 
     owner: str
-    repo: str
+    repo: str | None
     kind: str  # "issues" or "discussions"
+    is_org_level: bool
     number: int
 
 
@@ -48,18 +50,27 @@ def convert_github_url_to_markdown(url: str) -> str:
         msg = "環境変数 GITHUB_ACCESS_TOKEN が設定されていません。"
         raise GithubMarkdownError(msg)
 
-    github = Github(auth=Auth.Token(token))
-
-    try:
-        repo = github.get_repo(f"{resource.owner}/{resource.repo}")
-    except GithubException as exc:
-        msg = "指定された GitHub リポジトリを取得できませんでした。"
-        raise GithubMarkdownError(msg) from exc
+    client = Github(auth=Auth.Token(token))
 
     try:
         if resource.kind == "issues":
+            if resource.is_org_level:
+                msg = "Organization レベルの issue URL には対応していません。"
+                raise GithubMarkdownError(msg)
+            if not resource.repo:
+                msg = "Issue のリポジトリ情報が不足しています。"
+                raise GithubMarkdownError(msg)
+
+            repo = client.get_repo(f"{resource.owner}/{resource.repo}")
             return _render_issue_markdown(repo, resource.number)
         if resource.kind == "discussions":
+            if resource.is_org_level:
+                return _render_org_discussion_markdown(client, resource.owner, resource.number)
+            if not resource.repo:
+                msg = "Discussion のリポジトリ情報が不足しています。"
+                raise GithubMarkdownError(msg)
+
+            repo = client.get_repo(f"{resource.owner}/{resource.repo}")
             return _render_discussion_markdown(repo, resource.number)
     except GithubException as exc:
         msg = "GitHub API 呼び出し中にエラーが発生しました。"
@@ -92,7 +103,19 @@ def _parse_github_url(url: str) -> GithubResource:
         msg = "GitHub の issue / discussion の URL 形式が不正です。"
         raise GithubMarkdownError(msg)
 
-    owner, repo, kind, number_str = segments[:4]
+    # /owner/repo/issues/123 や /owner/repo/discussions/123 形式
+    if segments[0] != "orgs":
+        owner, repo, kind, number_str = segments[:4]
+        is_org_level = False
+    else:
+        # /orgs/ORG/discussions/123 形式（Organization レベルの Discussion）
+        if len(segments) < 4:
+            msg = "GitHub の issue / discussion の URL 形式が不正です。"
+            raise GithubMarkdownError(msg)
+        _, owner, kind, number_str = segments[:4]
+        repo = None
+        is_org_level = True
+
     if kind not in {"issues", "discussions"}:
         msg = "issue と discussions の URL のみサポートしています。"
         raise GithubMarkdownError(msg)
@@ -103,7 +126,7 @@ def _parse_github_url(url: str) -> GithubResource:
         msg = "issue / discussion 番号が数値ではありません。"
         raise GithubMarkdownError(msg) from exc
 
-    return GithubResource(owner=owner, repo=repo, kind=kind, number=number)
+    return GithubResource(owner=owner, repo=repo, kind=kind, is_org_level=is_org_level, number=number)
 
 
 def _format_datetime_utc(dt: datetime) -> str:
@@ -197,7 +220,98 @@ author { login }
 
     # discussion / comments ともに GraphQL で必要なフィールドだけ取得する
     discussion = repo.get_discussion(number, discussion_graphql_schema)
+    return _format_discussion_markdown_with_comments(discussion, comment_graphql_schema)
 
+
+def _render_org_discussion_markdown(client: Github, org_login: str, number: int) -> str:
+    """Organization レベルの Discussion を取得して Markdown を生成する。
+
+    GitHub GraphQL には ``organization.discussion`` フィールドが存在しないため、
+    Discussions 検索（``search(type: DISCUSSION)``）で該当ノードを特定してから
+    ``get_repository_discussion`` で本体を取得する。
+    """
+    node_id = _search_discussion_node_id_for_org(client, org_login, number)
+
+    discussion_graphql_schema = """
+id
+title
+body
+createdAt
+url
+author { login }
+"""
+    comment_graphql_schema = """
+id
+body
+createdAt
+url
+author { login }
+"""
+
+    # Discussion の node_id が分かれば、PyGithub のヘルパーで
+    # RepositoryDiscussion オブジェクトを取得できる。
+    discussion = client.get_repository_discussion(node_id, discussion_graphql_schema)
+    return _format_discussion_markdown_with_comments(discussion, comment_graphql_schema)
+
+
+def _search_discussion_node_id_for_org(client: Github, org_login: str, number: int) -> str:
+    """Organization レベル Discussion の node_id を Discussions 検索で取得する。
+
+    GraphQL の search フィールドを使い、org 単位で Discussions を検索したうえで
+    Discussion.number が一致するノードを 1 件特定する。
+    """
+    search_query = f"org:{org_login} {number}"
+    graphql_query = """
+query Q($query: String!) {
+  search(query: $query, type: DISCUSSION, first: 50) {
+    discussionCount
+    nodes {
+      __typename
+      ... on Discussion {
+        id
+        number
+      }
+    }
+  }
+}
+"""
+    variables: dict[str, Any] = {"query": search_query}
+    _, data = client.requester.graphql_query(graphql_query, variables)
+
+    search_data = data.get("data", {}).get("search")
+    if not isinstance(search_data, dict):
+        msg = "Organization レベルの discussion 検索結果を解釈できませんでした。"
+        raise GithubMarkdownError(msg)
+
+    nodes = search_data.get("nodes") or []
+    if not isinstance(nodes, list):
+        msg = "Organization レベルの discussion 検索結果の形式が不正です。"
+        raise GithubMarkdownError(msg)
+
+    candidates: list[str] = []
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        if node.get("__typename") != "Discussion":
+            continue
+        if int(node.get("number", -1)) != number:
+            continue
+        node_id = node.get("id")
+        if isinstance(node_id, str) and node_id:
+            candidates.append(node_id)
+
+    if not candidates:
+        msg = f"Organization レベルの discussion (org={org_login}, number={number}) を GitHub 検索で特定できませんでした。"
+        raise GithubMarkdownError(msg)
+    if len(candidates) > 1:
+        msg = f"Organization レベルの discussion (org={org_login}, number={number}) に複数の候補が見つかりました。"
+        raise GithubMarkdownError(msg)
+
+    return candidates[0]
+
+
+def _format_discussion_markdown_with_comments(discussion: object, comment_graphql_schema: str) -> str:
+    """Discussion 本文とコメントを Markdown 文字列に整形する。"""
     author = discussion.author
     author_login = getattr(author, "login", None) or "unknown"
 
