@@ -18,6 +18,8 @@ dependencies = [
     "tinysegmenter>=0.4",
     "chardet>=5.2.0",
     "pygithub>=2.8.1",
+    "pandas>=2.3.3",
+    "pyarrow>=22.0.0",
 ]
 
 [tool.ruff]

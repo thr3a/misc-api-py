@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 from typing import Any, Final
 from urllib.parse import urlsplit
 
-import github
 from github import Auth, Github, GithubException
 
 EM_SPACE: Final[str] = "\u2003"
