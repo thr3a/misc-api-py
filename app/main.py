@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import html2md, items, roleplay
+from .routers import html2md, items, roleplay, vocabulary
 
 app = FastAPI()
 
@@ -21,6 +21,7 @@ app.add_middleware(
 app.include_router(items.router)
 app.include_router(html2md.router)
 app.include_router(roleplay.router)
+app.include_router(vocabulary.router)
 
 
 @app.get("/")
