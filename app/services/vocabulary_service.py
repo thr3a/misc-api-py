@@ -26,7 +26,7 @@ class VocabularyListResponse(BaseModel):
 
 
 def fetch_random_words(
-    pos_major: str,
+    pos_major: str | list[str],
     count: int = 10,
     level_min: int | None = None,
     level_max: int | None = None,
@@ -36,7 +36,7 @@ def fetch_random_words(
     """指定した品詞大分類に一致する語彙をランダムに取得する。
 
     Args:
-        pos_major: 品詞大分類（例: "動詞"、"名詞"）
+        pos_major: 品詞大分類（例: "動詞"、"名詞"、または ["イ形容詞", "ナ形容詞"] のようなリスト）
         count: 取得件数（デフォルト: 10）
         level_min: 留学生用語彙レベルの最小値（指定しない場合は下限なし）
         level_max: 留学生用語彙レベルの最大値（指定しない場合は上限なし）
@@ -46,8 +46,10 @@ def fetch_random_words(
     Returns:
         VocabularyItemのリスト
     """
-    conditions = ["pos_major = ?"]
-    params: list[object] = [pos_major]
+    pos_major_list = [pos_major] if isinstance(pos_major, str) else pos_major
+    placeholders = ",".join("?" * len(pos_major_list))
+    conditions = [f"pos_major IN ({placeholders})"]
+    params: list[object] = list(pos_major_list)
 
     if not include_proper_noun:
         conditions.append("(vdrj_student_level_raw IS NULL OR vdrj_student_level_raw != 'IS_PN')")

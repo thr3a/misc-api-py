@@ -52,3 +52,24 @@ async def get_random_nouns(
         include_proper_noun=include_proper_noun,
     )
     return VocabularyListResponse(items=items)
+
+
+@router.get(
+    "/adjectives",
+    summary="ランダム形容詞の取得",
+    description="形容詞（イ形容詞・ナ形容詞）をランダムに返します。件数・レベル範囲を指定できます。",
+    response_model=VocabularyListResponse,
+)
+async def get_random_adjectives(
+    count: int = Query(10, ge=1, le=500, description="取得件数（デフォルト: 10）"),
+    level_min: int | None = Query(None, ge=1, le=21, description="留学生用語彙レベルの最小値"),
+    level_max: int | None = Query(None, ge=1, le=21, description="留学生用語彙レベルの最大値"),
+) -> VocabularyListResponse:
+    """ランダムな形容詞（イ形容詞・ナ形容詞）を返します。"""
+    items = fetch_random_words(
+        ["イ形容詞", "ナ形容詞"],
+        count=count,
+        level_min=level_min,
+        level_max=level_max,
+    )
+    return VocabularyListResponse(items=items)

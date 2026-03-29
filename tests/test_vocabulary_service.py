@@ -21,6 +21,10 @@ _SAMPLE_ROWS = [
     ("山", "ヤマ", "名詞", "普通名詞", "一般", None, "IS_01K", 1),
     ("川", "カワ", "名詞", "普通名詞", "一般", None, "IS_02K", 2),
     ("東京", "トウキョウ", "名詞", "固有名詞", "地名", None, "IS_PN", None),
+    ("大きい", "オオキイ", "イ形容詞", "一般", "一般", None, "IS_01K", 1),
+    ("小さい", "チイサイ", "イ形容詞", "一般", "一般", None, "IS_02K", 2),
+    ("静か", "シズカ", "ナ形容詞", "一般", "一般", None, "IS_01K", 1),
+    ("便利", "ベンリ", "ナ形容詞", "一般", "一般", None, "IS_03K", 3),
 ]
 
 
@@ -144,3 +148,42 @@ class TestFetchRandomWords:
             item.vdrj_student_level is not None and 2 <= item.vdrj_student_level <= 4
             for item in results
         )
+
+    def test_pos_major_as_list(self, test_db: Path) -> None:
+        """pos_major にリストを渡すと複数品詞が返ること。"""
+        results = fetch_random_words(["イ形容詞", "ナ形容詞"], db_path=test_db)
+        assert len(results) > 0
+        assert all(item.pos_major in {"イ形容詞", "ナ形容詞"} for item in results)
+
+
+class TestFetchRandomAdjectives:
+    """形容詞（イ形容詞・ナ形容詞）取得の単体テスト。"""
+
+    def test_returns_only_adjectives(self, test_db: Path) -> None:
+        """イ形容詞・ナ形容詞のみが返ること。"""
+        results = fetch_random_words(["イ形容詞", "ナ形容詞"], db_path=test_db)
+        assert len(results) > 0
+        assert all(item.pos_major in {"イ形容詞", "ナ形容詞"} for item in results)
+
+    def test_returns_both_i_and_na_adjectives(self, test_db: Path) -> None:
+        """イ形容詞とナ形容詞の両方が含まれること。"""
+        results = fetch_random_words(["イ形容詞", "ナ形容詞"], db_path=test_db)
+        pos_set = {item.pos_major for item in results}
+        assert "イ形容詞" in pos_set
+        assert "ナ形容詞" in pos_set
+
+    def test_does_not_include_verbs_or_nouns(self, test_db: Path) -> None:
+        """動詞・名詞が含まれないこと。"""
+        results = fetch_random_words(["イ形容詞", "ナ形容詞"], db_path=test_db)
+        assert all(item.pos_major not in {"動詞", "名詞"} for item in results)
+
+    def test_level_min_filter_for_adjectives(self, test_db: Path) -> None:
+        """level_min=2 を指定すると vdrj_student_level >= 2 の形容詞だけが返ること。"""
+        results = fetch_random_words(["イ形容詞", "ナ形容詞"], level_min=2, db_path=test_db)
+        assert len(results) > 0
+        assert all(item.vdrj_student_level is not None and item.vdrj_student_level >= 2 for item in results)
+
+    def test_count_parameter_for_adjectives(self, test_db: Path) -> None:
+        """count=1 を指定すると最大1件しか返らないこと。"""
+        results = fetch_random_words(["イ形容詞", "ナ形容詞"], count=1, db_path=test_db)
+        assert len(results) <= 1
