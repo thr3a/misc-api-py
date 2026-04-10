@@ -33,7 +33,7 @@ class Statement(BaseModel):
 class PuzzleGenerateRequest(BaseModel):
     """パズル生成リクエスト."""
 
-    num_persons: int = Field(..., ge=2, le=10, description="人数（2〜10）")
+    num_persons: int = Field(..., ge=2, le=100, description="人数（2〜100）")
     level: Literal["easy", "normal", "hard"] = Field(..., description="難易度（easy / normal / hard）")
 
     model_config = {
