@@ -291,7 +291,7 @@ def generate_puzzle(num_persons: int, level: str, max_retries: int = 1000) -> di
 
     Args:
         num_persons: 人数（2以上）
-        level: 難易度（"easy" | "tricky" | "trickier"）
+        level: 難易度（"easy" | "normal" | "hard"）
         max_retries: 最大リトライ回数
 
     Returns:
@@ -309,10 +309,10 @@ def generate_puzzle(num_persons: int, level: str, max_retries: int = 1000) -> di
     if level == "easy":
         types = STATEMENT_TYPES_EASY
         num_statements = num_persons
-    elif level == "tricky":
+    elif level == "normal":
         types = STATEMENT_TYPES_ALL
         num_statements = num_persons
-    elif level == "trickier":
+    elif level == "hard":
         types = STATEMENT_TYPES_ALL
         num_statements = num_persons + num_persons // 2
     else:

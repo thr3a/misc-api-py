@@ -34,13 +34,13 @@ class PuzzleGenerateRequest(BaseModel):
     """パズル生成リクエスト."""
 
     num_persons: int = Field(..., ge=2, le=10, description="人数（2〜10）")
-    level: Literal["easy", "tricky", "trickier"] = Field(..., description="難易度（easy / tricky / trickier）")
+    level: Literal["easy", "normal", "hard"] = Field(..., description="難易度（easy / normal / hard）")
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {"num_persons": 3, "level": "easy"},
-                {"num_persons": 4, "level": "tricky"},
+                {"num_persons": 4, "level": "normal"},
             ]
         }
     }
@@ -136,8 +136,8 @@ router = APIRouter(
     description=(
         "指定した人数・難易度で Knights and Knaves パズルを生成します。\n\n"
         "- **easy**: accusation / affirmation / sympathetic / antithetic の4種類の発言のみ使用\n"
-        "- **tricky**: すべての発言タイプを使用（人数と同数の発言）\n"
-        "- **trickier**: すべての発言タイプを使用（人数 × 1.5 の発言）\n\n"
+        "- **normal**: すべての発言タイプを使用（人数と同数の発言）\n"
+        "- **hard**: すべての発言タイプを使用（人数 × 1.5 の発言）\n\n"
         "z3 ソルバーにより一意解を持つパズルのみ返します。"
     ),
     response_model=PuzzleResponse,
