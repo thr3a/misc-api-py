@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, Body, HTTPException, Path
 from pydantic import BaseModel, Field
 
 
@@ -84,7 +84,7 @@ async def read_items() -> dict[str, Item]:
         }
     },
 )
-async def read_item(item_id: str = Path(..., description="取得するアイテムID", example="plumbus")) -> ItemWithId:
+async def read_item(item_id: str = Path(..., description="取得するアイテムID", examples={"例": {"value": "plumbus"}})) -> ItemWithId:
     """単一アイテムを取得します。"""
     if item_id not in fake_items_db:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -106,8 +106,12 @@ async def read_item(item_id: str = Path(..., description="取得するアイテ�
         }
     },
 )
-async def update_item(item_id: str = Path(..., description="更新するアイテムID", example="plumbus")) -> ItemWithId:
+async def update_item(
+    item_id: str = Path(..., description="更新するアイテムID", examples={"例": {"value": "plumbus"}}),
+    item: Item = Body(..., description="更新するアイテムの内容"),
+) -> ItemWithId:
     """アイテムを更新します（デモ用の制限あり）"""
     if item_id != "plumbus":
         raise HTTPException(status_code=403, detail="You can only update the item: plumbus")
-    return ItemWithId(item_id=item_id, name="The great Plumbus")
+    fake_items_db[item_id] = item
+    return ItemWithId(**item.model_dump(), item_id=item_id)
