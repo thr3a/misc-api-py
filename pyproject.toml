@@ -7,21 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "fastapi[standard]",
     "ruff",
-    "pytest",
-    "trafilatura[all]>=2.0.0",
-    "httpx>=0.28.1",
-    "autopager>=0.3.1",
-    "ipython>=9.6.0",
-    "curl-cffi>=0.13.0",
-    "httpx-curl-cffi>=0.1.4",
-    "newspaper4k>=0.9.4.1",
-    "tinysegmenter>=0.4",
-    "chardet>=5.2.0",
-    "pygithub>=2.8.1",
-    "pandas>=2.3.3",
-    "pyarrow>=22.0.0",
-    "openpyxl>=3.1.5",
-    "z3-solver>=4.16.0.0",
+    "pytest"
 ]
 
 [tool.ruff]
