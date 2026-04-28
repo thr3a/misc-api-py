@@ -6,12 +6,10 @@ REPO = "dartags/DanbotNL-2408-260M"
 processor = AutoProcessor.from_pretrained(
     REPO,
     trust_remote_code=True,
-    revision="f992aa6", # optional 
 )
 model = AutoModelForPreTraining.from_pretrained(
     REPO,
     trust_remote_code=True,
-    revision="f992aa6", # optional
     torch_dtype=torch.bfloat16
 )
 
