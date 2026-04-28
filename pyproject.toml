@@ -1,5 +1,5 @@
 [project]
-name = "fastapi-template"
+name = "ai-api"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -7,13 +7,18 @@ requires-python = ">=3.13"
 dependencies = [
     "fastapi[standard]",
     "ruff",
-    "pytest"
+    "pytest",
+    "torch>=2.11.0",
+    "transformers>=5.6.2",
 ]
 
 [tool.ruff]
 line-length = 300
 target-version = "py313"
 exclude = [".git", ".ruff_cache", ".venv", ".vscode"]
+
+[[tool.uv.index]]
+url = "https://download.pytorch.org/whl/cpu"
 
 [tool.ruff.lint]
 select = [
