@@ -1,29 +1,20 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import html2md, items, puzzle, roleplay, vocabulary
+from .routers import items
 
 app = FastAPI()
 
 # CORSミドルウェアの設定
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://192.168.16.12:5173",
-        "http://localhost:5173",
-        "https://turai.work",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],  # すべてのHTTPメソッドを許可
     allow_headers=["*"],  # すべてのヘッダーを許可
 )
 
 app.include_router(items.router)
-app.include_router(html2md.router)
-app.include_router(roleplay.router)
-app.include_router(vocabulary.router)
-app.include_router(puzzle.router)
-
 
 @app.get("/")
 async def root() -> dict[str, str]:
